@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.backend
+    container_name: claim-router-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-false}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-insurance-claim-router}
+      - LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+      - DATABASE_URL=sqlite+aiosqlite:///./data/claims.db
+      - ALLOWED_ORIGINS=http://localhost:5173
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - KB_BASE_PATH=/app/kb
+    volumes:
+      - ./backend:/app
+      - ./kb:/app/kb
+      - sqlite_data:/app/data
+    networks:
+      - claim-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    container_name: claim-router-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - claim-network
+    restart: unless-stopped
+
+networks:
+  claim-network:
+    driver: bridge
+
+volumes:
+  sqlite_data:
